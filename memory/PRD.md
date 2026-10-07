@@ -111,3 +111,17 @@ Activation by license code (LIC-), employee code (EMP-), or a self-service trial
   app.json: NSCameraUsageDescription, android CAMERA permission, expo-camera plugin.
 - Verified by testing_agent (iteration_2): 14/14 backend + frontend (trusted-devices card, invite QR,
   scan button). QR camera scanning works only on a real device / Expo Go, not web preview.
+
+## Feature (2026-06): share invite via WhatsApp + import QR from gallery
+- Share invite (src/screens/OwnerMore.tsx InviteSheet): after creating an employee code, a composed
+  white card (app name + QR + EMP code + instruction) is captured with react-native-view-shot
+  (captureRef) and shared via expo-sharing (share-invite-whatsapp button) so the owner sends the QR
+  image + code in one tap; on web it falls back to a wa.me text link. Copy button retained.
+- Import QR from gallery (app/activate.tsx): new import-qr-button uses expo-image-picker
+  (launchImageLibraryAsync {mediaTypes:['images']}) + expo-camera scanFromURLAsync(uri,['qr']) to decode
+  a QR screenshot/photo and auto-activate; sits beside the existing camera scan-qr-button. Arabic toasts
+  for no-QR-found / unreadable image.
+- Packages already present: react-native-view-shot, expo-sharing, expo-image-picker, expo-camera.
+- Native-only (share sheet, camera scan, gallery decode) — work in Expo Go / builds, not web preview.
+- Verified by testing_agent (iteration_3): 14/14 backend + frontend; share button renders and web-tap
+  does not crash; activate scan+import buttons + importQr handler confirmed in source.

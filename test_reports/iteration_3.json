@@ -1,0 +1,28 @@
+{
+  "summary": "Verified the two new native-only features and ran full auth/trusted-device regression against external Convex (fearless-ostrich-878.eu-west-1.convex.site). Backend: 14/14 pytest pass — /auth/me (OWNER/DEVELOPER/401), /auth/touch={ok:true}, /auth/sessions returns list with exactly one current:true row and no raw session_token/token leaked, /auth/otp/request with phone '123' → 400 with Arabic 'أدخل رقم هاتف صحيح'. Frontend (390x844, test_token_owner): dismissed tour, tapped الإدارة tab, open-invite-button, filled invite-name-input 'موظف اختبار', tapped create-invite-button → invite-qr renders, invite-code-text = EMP-7C63-1B1B-6245 (matches /^EMP-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/), share-invite-whatsapp present with Arabic label 'مشاركة عبر واتساب' and tappable on web (uses Linking.openURL(wa.me) fallback, does NOT crash — captureRef/Sharing branch is Platform.OS !== 'web' only), copy-invite-code works. Source-level verification of app/activate.tsx: both scan-qr-button ('مسح رمز QR بالكاميرا') and import-qr-button ('استيراد رمز QR من المعرض') exist; importQr handler correctly uses ImagePicker.launchImageLibraryAsync({mediaTypes:['images'],quality:1}) + scanFromURLAsync(uri,['qr']) with Arabic error toasts for 'no QR found' and 'unreadable image', and auto-runs activate() with the decoded uppercased code. No deprecated Expo packages, no SafeAreaView misuse, no raw-text-outside-Text issues in the new code paths.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_auth_otp.py",
+    "/app/backend/tests/test_trusted_devices.py",
+    "/app/backend/tests/conftest.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "OwnerMore.tsx shareInvite: on web the fallback is a static wa.me/?text=... without the QR image attached — users on web preview will share only the text (code + instructions), not the QR image. That matches the design (image share is native-only via captureRef+Sharing), but worth a tiny inline comment on line 38 to prevent a future 'bug fix' adding the image on web.",
+    "activate.tsx importQr: the generic catch swallows the underlying error without logging — if scanFromURLAsync starts failing in a future expo-camera release, there will be no breadcrumb in Sentry/console. Consider `console.warn(e)` inside the catch for diagnostics (user-facing toast is already correct).",
+    "activate.tsx importQr: launchImageLibraryAsync does not request media-library permissions explicitly; on some Android configurations the picker returns canceled without a visible permission prompt. The current implementation treats canceled as a silent no-op, which is correct behaviourally but may confuse users on first use — a one-liner using MediaLibrary.requestPermissionsAsync could be added if telemetry shows this is a real issue."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "Created one real pending employee invite under org_test_1 via owner UI: EMP-7C63-1B1B-6245 (name 'موظف اختبار', type FIELD_AGENT). Pending row only, does NOT consume a user slot. Re-run `npx convex run edge:seedTestAccounts` to clean.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend is EXTERNAL Convex at https://fearless-ostrich-878.eu-west-1.convex.site/api — do NOT hit localhost:8001 (it is a stub). Two new features in this iteration are NATIVE-ONLY and NOT fully web-testable: (1) share-invite-whatsapp in OwnerMore.tsx uses react-native-view-shot captureRef + expo-sharing on Platform.OS !== 'web'; on web it falls back to Linking.openURL('https://wa.me/?text=...') and that fallback IS verified not to crash. (2) import-qr-button in app/activate.tsx uses expo-image-picker.launchImageLibraryAsync + expo-camera.scanFromURLAsync — web preview has no gallery and seeded tokens all have a role so the activate screen is unreachable in the UI; verify in source only. OTP /auth/otp/request for +963 polls Bird for ~8–15s; use timeout>=30s. Invite tests leak a real pending-invite row under org_test_1; re-seed to clean."
+}

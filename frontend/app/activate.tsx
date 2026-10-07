@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Linking, Modal, View } from "react-native";
-import { CameraView, useCameraPermissions } from "expo-camera";
+import { CameraView, scanFromURLAsync, useCameraPermissions } from "expo-camera";
+import * as ImagePicker from "expo-image-picker";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -15,6 +16,7 @@ export default function Activate() {
   const [org, setOrg] = useState("");
   const [loading, setLoading] = useState<"code" | "trial" | null>(null);
   const [scan, setScan] = useState(false);
+  const [importing, setImporting] = useState(false);
   const toast = useToast();
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
@@ -37,6 +39,26 @@ export default function Activate() {
     }
   };
 
+  // Let the employee pick a screenshot/photo of the QR from their gallery and decode it — handy when
+  // the invite arrived as an image (e.g. over WhatsApp) on the same phone they're signing in with.
+  const importQr = async () => {
+    try {
+      const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 1 });
+      if (res.canceled || !res.assets?.[0]) return;
+      setImporting(true);
+      const found = await scanFromURLAsync(res.assets[0].uri, ["qr"]);
+      const data = found?.[0]?.data?.trim();
+      if (!data) { toast("لم يتم العثور على رمز QR في الصورة", "error"); return; }
+      const v = data.toUpperCase();
+      setCode(v);
+      await run("code", v);
+    } catch {
+      toast("تعذّر قراءة الصورة، جرّب صورة أوضح", "error");
+    } finally {
+      setImporting(false);
+    }
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.surfaceSecondary }} testID="activation-screen">
       <Header title="تفعيل الحساب" subtitle={user?.email} right={<IconBtn testID="activation-logout-button" icon="log-out-outline" onPress={logout} />} />
@@ -46,7 +68,8 @@ export default function Activate() {
           <T v="caption">أدخل رمز ترخيص المؤسسة (LIC-...) إذا كنت مالكاً، أو رمز الموظف (EMP-...) الذي أرسله لك المدير.</T>
           <Field testID="activation-code-input" label="رمز التفعيل" value={code} onChangeText={setCode} autoCapitalize="characters" placeholder="EMP-XXXX-XXXX-XXXX" />
           <Btn testID="activate-code-button" title="تفعيل" icon="key-outline" onPress={() => run("code")} loading={loading === "code"} />
-          <Btn testID="scan-qr-button" variant="secondary" icon="qr-code-outline" title="مسح رمز QR بدل الكتابة" onPress={() => setScan(true)} />
+          <Btn testID="scan-qr-button" variant="secondary" icon="qr-code-outline" title="مسح رمز QR بالكاميرا" onPress={() => setScan(true)} />
+          <Btn testID="import-qr-button" variant="ghost" icon="image-outline" title="استيراد رمز QR من المعرض" loading={importing} onPress={importQr} />
         </Card>
         <Card style={{ gap: spacing.md }}>
           <T v="h2">تجربة مجانية 14 يوماً</T>
