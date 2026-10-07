@@ -69,3 +69,22 @@ Activation by license code (LIC-), employee code (EMP-), or a self-service trial
 - P1: seed a demo org with sample products/customers/sales for quick exploration (on request).
 - P1: review SMS deliverability to Syria in the Bird workspace (external; WhatsApp is the working path).
 - P2: push notifications (Emergent managed) — needs google-services.json + a native build.
+
+## Bug fix (2026-06): phone verification surfaces real delivery status
+- Reported: "make sure phone verification working correctly and real verification code."
+- Root cause (EXTERNAL Bird account): SMS to Syria is disabled (E12020 SMSDestinationNotEnabled)
+  and the WhatsApp fallback is REJECTED by Bird ~3s after a 202 "accepted" with
+  last_error code `price_not_found` ("whatsapp pricing unavailable"). The old code polled the
+  WhatsApp status only once at 2.5s, racing the later rejection, so requestOtp returned a false
+  {ok:true, channel:"whatsapp"} while no code ever arrived.
+- Fix (convex/edge.ts, deployed to fearless-ostrich-878): sendWhatsApp now polls the message
+  status up to 5×1.5s (~7.5s), returns failure on rejected/failed and success only once Bird
+  reports sent/delivered/read; requestOtp returns a precise Arabic error when the body shows a
+  pricing/balance block. No more false "code sent".
+- Verified by testing_agent (iteration_1): backend 7/7 (+963 request → 400 Arabic WhatsApp/Bird
+  error; bad phone → 400; verify guard; seeded-token auth + 401) and the login UI shows the error
+  and stays on phone-step.
+- STILL REQUIRED (user action in Bird, cannot be fixed in code) for a real code to be delivered:
+  (a) enable the destination country (Syria) in Bird → SMS destination settings, and/or
+  (b) set up WhatsApp pricing/billing (payment method + balance, approved WA Business sender) so
+  WhatsApp is not rejected with price_not_found. Once either is enabled, codes send with no code change.

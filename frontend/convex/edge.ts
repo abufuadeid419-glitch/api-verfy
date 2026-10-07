@@ -82,16 +82,24 @@ async function sendWhatsApp(phone: string, code: string) {
     }),
   });
   if (!r.ok) return { ok: false, status: r.status, body: await r.text() };
-  // Bird accepts asynchronously (202). Check once shortly after so an immediate rejection
-  // (no balance, unsupported destination) surfaces to the user instead of a code that never arrives.
+  // Bird accepts asynchronously (202, status "accepted") and may REJECT a few seconds later
+  // (e.g. no WhatsApp pricing/balance, unsupported destination). A single early check races that
+  // late rejection and falsely reports success, so poll the message status for a few seconds and
+  // only treat it as sent once Bird confirms delivery (or stays queued past the window).
   const msg: any = await r.json().catch(() => ({}));
   if (msg?.id) {
-    await new Promise((res) => setTimeout(res, 2500));
-    const st: any = await fetch(`${process.env.BIRD_BASE_URL}/v1/whatsapp/messages/${msg.id}`, { headers: birdHeaders() }).then((x) => x.json()).catch(() => ({}));
-    if (st?.status === "rejected" || st?.status === "failed") return { ok: false, status: 422, body: JSON.stringify(st.last_error ?? st) };
+    for (let i = 0; i < 5; i++) {
+      await new Promise((res) => setTimeout(res, 1500));
+      const st: any = await fetch(`${process.env.BIRD_BASE_URL}/v1/whatsapp/messages/${msg.id}`, { headers: birdHeaders() }).then((x) => x.json()).catch(() => ({}));
+      if (st?.status === "rejected" || st?.status === "failed") return { ok: false, status: 422, body: JSON.stringify(st.last_error ?? st) };
+      if (st?.status === "sent" || st?.status === "delivered" || st?.status === "read") return { ok: true, status: r.status, body: "" };
+    }
   }
   return { ok: true, status: r.status, body: "" };
 }
+
+// Bird workspace-config failures that no retry will fix — tell the user precisely what to enable.
+const waPricingBlocked = (body: string) => /price_not_found|pricing unavailable|pricing/i.test(body);
 
 const isBadRecipient = (body: string) => /SMSInvalidRecipient|E12087|InvalidRecipient/.test(body);
 
@@ -117,6 +125,7 @@ export const requestOtp = action({
     if (wa.ok) return { ok: true, channel: "whatsapp" };
     console.error("bird whatsapp failed", wa.status, wa.body.slice(0, 300));
     await ctx.runMutation(internal.edge.dropOtp, { id: otpId });
+    if (waPricingBlocked(wa.body)) throw new Error("خدمة واتساب غير مهيأة للإرسال في حساب Bird (تسعير/رصيد واتساب غير متوفر). فعّل تسعير واتساب أو أضف رصيداً في حساب Bird.");
     throw new Error(wa.status === 429 ? birdError(429) : "تعذر إرسال رمز التحقق عبر الرسائل أو واتساب، حاول لاحقاً");
   },
 });
