@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { RefreshControl, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
+import * as Clipboard from "expo-clipboard";
+import QRCode from "react-native-qrcode-svg";
 
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { fmtDate } from "@/src/api";
@@ -29,9 +31,13 @@ function InviteSheet({ visible, onClose }: { visible: boolean; onClose: () => vo
     <Sheet testID="invite-sheet" visible={visible} onClose={close} title="إضافة موظف"
       footer={code ? <Btn testID="invite-done-button" title="تم" onPress={close} /> : <Btn testID="create-invite-button" title="إنشاء رمز التفعيل" icon="key-outline" loading={m.isPending} onPress={() => (name.trim() ? m.mutate({ name, employee_type: type }) : toast("أدخل اسم الموظف", "error"))} />}>
       {code ? (
-        <Card style={{ alignItems: "center", gap: spacing.sm }}>
-          <T v="caption">أرسل هذا الرمز للموظف ليفعّل حسابه بعد تسجيل الدخول</T>
+        <Card style={{ alignItems: "center", gap: spacing.md }}>
+          <T v="caption" style={{ textAlign: "center" }}>اطلب من الموظف تسجيل الدخول، ثم مسح رمز QR هذا من شاشة التفعيل — أو أرسل له الرمز لإدخاله يدوياً.</T>
+          <View style={{ backgroundColor: "#ffffff", padding: spacing.md, borderRadius: 12 }} testID="invite-qr">
+            <QRCode value={code} size={190} backgroundColor="#ffffff" color="#111111" />
+          </View>
           <T v="title" color="brandPrimary" selectable testID="invite-code-text">{code}</T>
+          <Btn testID="copy-invite-code" variant="secondary" small icon="copy-outline" title="نسخ الرمز" onPress={async () => { await Clipboard.setStringAsync(code); toast("تم نسخ الرمز"); }} />
         </Card>
       ) : (
         <>

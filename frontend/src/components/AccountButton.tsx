@@ -10,8 +10,38 @@ import { View } from "react-native";
 
 import { api, fmtDate, roleLabel } from "@/src/api";
 import { useAuth } from "@/src/auth";
+import { useApi, useMutate } from "@/src/hooks";
 import { spacing } from "@/src/theme";
 import { Badge, Btn, Card, IconBtn, Row, Sheet, T, useToast } from "@/src/ui";
+
+// "Trusted devices": the phones/browsers where this account stays signed in. Revoking one forces
+// that device to verify by code again.
+function TrustedDevices({ open }: { open: boolean }) {
+  const sessions = useApi<any[]>("/auth/sessions", open);
+  const revoke = useMutate<any>("DELETE", (d) => `/auth/sessions/${d.device_id}`, "تم تسجيل خروج الجهاز");
+  const list = sessions.data ?? [];
+  if (!list.length) return null;
+  return (
+    <Card style={{ padding: 0, overflow: "hidden" }} testID="trusted-devices-card">
+      <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md }}>
+        <T v="label">الأجهزة الموثوقة</T>
+        <T v="caption">تبقى هذه الأجهزة مسجّلة الدخول دون طلب رمز جديد.</T>
+      </View>
+      {list.map((s: any) => (
+        <Row
+          key={s.device_id}
+          testID={`trusted-device-${s.device_id}`}
+          icon={s.platform === "web" ? "desktop-outline" : "phone-portrait-outline"}
+          title={s.device}
+          subtitle={`آخر استخدام: ${fmtDate(s.last_seen_at)}`}
+          right={s.current
+            ? <Badge text="هذا الجهاز" tone="success" />
+            : <IconBtn testID={`revoke-device-${s.device_id}`} icon="log-out-outline" onPress={() => revoke.mutate(s)} />}
+        />
+      ))}
+    </Card>
+  );
+}
 
 export function AccountButton() {
   const { user, logout } = useAuth();
@@ -69,6 +99,7 @@ export function AccountButton() {
           <Row testID="account-terms-link" icon="document-text-outline" title="شروط الاستخدام" onPress={() => { setOpen(false); router.push("/legal?doc=terms"); }} />
           <Row testID="account-privacy-link" icon="shield-outline" title="سياسة الخصوصية" onPress={() => { setOpen(false); router.push("/legal?doc=privacy"); }} />
         </Card>
+        <TrustedDevices open={open} />
         {user?.role !== "OWNER" && (
           confirmDel ? (
             <Card style={{ gap: spacing.sm }}>

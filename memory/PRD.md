@@ -94,3 +94,20 @@ Activation by license code (LIC-), employee code (EMP-), or a self-service trial
   calls requestOtp(phone,"whatsapp")) whenever a send attempt errors. Resend countdown copy changed
   to "يمكنك إعادة الإرسال خلال {n} ثانية". Frontend-only; verified via screenshot (button appears
   after a failed +963 send; error + retry button render on phone-step).
+
+## Features (2026-06): auto-WhatsApp fallback, Trusted Devices, invite QR
+- Auto WhatsApp fallback (convex/edge.ts sendSms): SMS now polls Bird delivery status (4×1.2s); an
+  accepted-then-rejected SMS is treated as failure so requestOtp auto-sends WhatsApp with no extra tap.
+- Trusted Devices: sessions slide to +30d and record device/platform on every app open via a new
+  POST /api/auth/touch (convex/sessions.ts touch). GET /api/auth/sessions lists devices (device_id,
+  device, platform, last_seen_at, current — never the raw token); DELETE /api/auth/sessions/:id revokes.
+  user_sessions schema gained device_id/device/platform/last_seen_at (all optional). openSession stamps
+  device_id. Frontend: src/device.ts label helper; src/auth.tsx calls /auth/touch on startup + after
+  verify; AccountButton shows a "الأجهزة الموثوقة" card with current-device badge + per-device revoke.
+- Invite QR: OwnerMore InviteSheet renders a scannable QR (react-native-qrcode-svg) of the EMP- code
+  plus a copy button; app/activate.tsx adds a "مسح رمز QR" button opening an expo-camera CameraView QR
+  scanner (permission handled per contract: request → settings fallback) that auto-fills and activates.
+  Packages added: expo-camera, react-native-svg, react-native-qrcode-svg, expo-device, expo-clipboard.
+  app.json: NSCameraUsageDescription, android CAMERA permission, expo-camera plugin.
+- Verified by testing_agent (iteration_2): 14/14 backend + frontend (trusted-devices card, invite QR,
+  scan button). QR camera scanning works only on a real device / Expo Go, not web preview.

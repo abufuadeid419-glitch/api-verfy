@@ -64,7 +64,20 @@ async function sendSms(phone: string, code: string) {
     headers: birdHeaders(),
     body: JSON.stringify({ to: phone, text: `رمز التحقق في النظام الذكي: ${code}\nصالح لمدة 10 دقائق. لا تشاركه مع أحد.`, category: "authentication" }),
   });
-  return { ok: r.ok, status: r.status, body: r.ok ? "" : await r.text() };
+  if (!r.ok) return { ok: false, status: r.status, body: await r.text() };
+  // Like WhatsApp, Bird may accept an SMS (2xx) then REJECT it a few seconds later (destination not
+  // enabled, no balance). Poll the status briefly so an async rejection surfaces as a failure — which
+  // lets requestOtp auto-fall-back to WhatsApp with no extra tap from the user.
+  const msg: any = await r.json().catch(() => ({}));
+  if (msg?.id) {
+    for (let i = 0; i < 4; i++) {
+      await new Promise((res) => setTimeout(res, 1200));
+      const st: any = await fetch(`${process.env.BIRD_BASE_URL}/v1/sms/messages/${msg.id}`, { headers: birdHeaders() }).then((x) => x.json()).catch(() => ({}));
+      if (st?.status === "rejected" || st?.status === "failed") return { ok: false, status: 422, body: JSON.stringify(st.last_error ?? st) };
+      if (st?.status === "sent" || st?.status === "delivered") return { ok: true, status: r.status, body: "" };
+    }
+  }
+  return { ok: true, status: r.status, body: "" };
 }
 
 // WhatsApp authentication template (Bird-managed `bird_otp` by default; override via Convex env).
@@ -179,7 +192,7 @@ async function openSession(ctx: any, phone: string, session_token: string) {
     }
     // Used OTP rows are no longer needed.
     for (const o of await ctx.db.query("otp_requests").withIndex("by_phone", (q: any) => q.eq("phone", phone)).collect()) await ctx.db.delete(o._id);
-    await ctx.db.insert("user_sessions", { session_token, user_id, expires_at: new Date(Date.now() + 30 * 86400000).toISOString(), created_at: nowIso() });
+    await ctx.db.insert("user_sessions", { session_token, user_id, device_id: newId(), last_seen_at: nowIso(), expires_at: new Date(Date.now() + 30 * 86400000).toISOString(), created_at: nowIso() });
     const user: any = await ctx.db.query("users").withIndex("by_user_id", (q: any) => q.eq("user_id", user_id)).unique();
     const out: any = { ...clean(user), org: null };
     if (user.org_id) out.org = clean(await orgById(ctx, user.org_id));

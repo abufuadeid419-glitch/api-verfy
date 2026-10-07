@@ -25,6 +25,7 @@ import type * as purchases from "../purchases.js";
 import type * as returns from "../returns.js";
 import type * as routes from "../routes.js";
 import type * as sales from "../sales.js";
+import type * as sessions from "../sessions.js";
 import type * as stats from "../stats.js";
 import type * as targets from "../targets.js";
 import type * as tracking from "../tracking.js";
@@ -54,6 +55,7 @@ declare const fullApi: ApiFromModules<{
   returns: typeof returns;
   routes: typeof routes;
   sales: typeof sales;
+  sessions: typeof sessions;
   stats: typeof stats;
   targets: typeof targets;
   tracking: typeof tracking;

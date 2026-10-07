@@ -39,6 +39,10 @@ export default defineSchema(
     user_sessions: defineTable({
       session_token: v.string(),
       user_id: v.string(),
+      device_id: v.optional(v.string()),
+      device: v.optional(v.string()),
+      platform: v.optional(v.string()),
+      last_seen_at: v.optional(v.string()),
       expires_at: v.optional(v.union(v.string(), v.number())),
       created_at: v.optional(v.union(v.string(), v.number())),
     })

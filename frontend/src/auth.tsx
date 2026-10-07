@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 
 import { api, setToken, setUnauthorizedHandler } from "@/src/api";
+import { deviceLabel, devicePlatform } from "@/src/device";
 import { clearOffline } from "@/src/offline";
 import { queryClient } from "@/src/query-client";
 import { storage } from "@/src/utils/storage";
@@ -77,6 +78,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setTokenState(String(t));
       try {
         setUserState(await api<User>("/auth/me"));
+        // Trusted device: slide the session forward + record this device on every app open.
+        api("/auth/touch", { method: "POST", body: { device: deviceLabel(), platform: devicePlatform() } }).catch(() => {});
       } catch {
         await clear();
       }
@@ -104,6 +107,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await storage.secureSet(TOKEN_KEY, r.session_token);
         setTokenState(r.session_token);
         setUserState(r.user);
+        api("/auth/touch", { method: "POST", body: { device: deviceLabel(), platform: devicePlatform() } }).catch(() => {});
       }),
     [run],
   );

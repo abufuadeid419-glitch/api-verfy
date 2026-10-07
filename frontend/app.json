@@ -12,7 +12,8 @@
       "bundleIdentifier": "com.emergent.mobilerebuild.iau31a",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Record where each sale and visit happens",
-        "NSPhotoLibraryUsageDescription": "Choose your company logo for invoices"
+        "NSPhotoLibraryUsageDescription": "Choose your company logo for invoices",
+        "NSCameraUsageDescription": "Scan a colleague's QR code to join"
       }
     },
     "android": {
@@ -25,7 +26,8 @@
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
         "BLUETOOTH_CONNECT",
-        "BLUETOOTH_SCAN"
+        "BLUETOOTH_SCAN",
+        "CAMERA"
       ]
     },
     "web": {
@@ -61,6 +63,12 @@
         "expo-image-picker",
         {
           "photosPermission": "Choose your company logo for invoices"
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Scan a colleague's QR code to join"
         }
       ]
     ],
