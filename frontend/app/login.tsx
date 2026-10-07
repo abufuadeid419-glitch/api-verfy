@@ -127,7 +127,7 @@ function PhoneAuth() {
         <Btn testID="login-verify-button" title="تحقق ودخول" icon="checkmark" loading={busy} disabled={code.length !== 6} onPress={() => verifyOtp(sentTo, code)} />
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
           <Btn testID="login-change-phone" variant="ghost" small title="تغيير الرقم" onPress={() => setSentTo(null)} />
-          <Btn testID="login-resend-button" variant="ghost" small title={wait > 0 ? `إعادة الإرسال (${wait})` : "إعادة إرسال الرمز"} disabled={wait > 0 || busy} onPress={() => send()} />
+          <Btn testID="login-resend-button" variant="ghost" small title={wait > 0 ? `يمكنك إعادة الإرسال خلال ${wait} ثانية` : "إعادة إرسال الرمز"} disabled={wait > 0 || busy} onPress={() => send()} />
         </View>
         {via === "sms" && (
           <Btn testID="login-whatsapp-button" variant="secondary" icon="logo-whatsapp" title="لم يصلك الرمز؟ أرسله عبر واتساب" disabled={wait > 30 || busy} onPress={() => send("whatsapp")} />
@@ -163,6 +163,9 @@ function PhoneAuth() {
       </View>
       {err}
       <Btn testID="login-send-code-button" title="إرسال رمز التحقق" icon="chatbubble-ellipses-outline" loading={busy} disabled={local.replace(/\D/g, "").length < 6} onPress={() => send()} />
+      {!!error && (
+        <Btn testID="login-whatsapp-retry" variant="secondary" icon="logo-whatsapp" title="لم يصلك الرمز؟ جرّب الإرسال عبر واتساب" loading={busy} disabled={busy || local.replace(/\D/g, "").length < 6} onPress={() => send("whatsapp")} />
+      )}
       {terms}
     </View>
   );

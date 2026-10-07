@@ -88,3 +88,9 @@ Activation by license code (LIC-), employee code (EMP-), or a self-service trial
   (a) enable the destination country (Syria) in Bird → SMS destination settings, and/or
   (b) set up WhatsApp pricing/billing (payment method + balance, approved WA Business sender) so
   WhatsApp is not rejected with price_not_found. Once either is enabled, codes send with no code change.
+
+## Enhancement (2026-06): friendlier resend copy + one-tap WhatsApp fallback on failure
+- app/login.tsx: phone-step now shows a one-tap WhatsApp retry button (testID login-whatsapp-retry,
+  calls requestOtp(phone,"whatsapp")) whenever a send attempt errors. Resend countdown copy changed
+  to "يمكنك إعادة الإرسال خلال {n} ثانية". Frontend-only; verified via screenshot (button appears
+  after a failed +963 send; error + retry button render on phone-step).
